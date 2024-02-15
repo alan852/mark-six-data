@@ -1,0 +1,35 @@
+name: Scrape
+
+on:
+  schedule:
+    # Execute the workflow everyday at 10pm (HK Time)
+    - cron: '00 14 * * *'
+
+  push:
+    paths:
+      - 'scrape.py'
+      - '.github/workflows/scrape.yml'
+    branches:
+      - main
+    tags-ignore:
+      - '**'
+
+jobs:
+  scrape:
+    name: Scrape mark six data
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@main
+      - name: Scrape
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run:
+          python scrape.py
+      - name: Commit
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "14139491+alan852@users.noreply.github.com"
+          git commit -am "New mark six data obtained on $(date +"%Y-%m-%d")"
+          git push
