@@ -33,5 +33,5 @@ jobs:
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "14139491+alan852@users.noreply.github.com"
-          git commit -am "New mark six data obtained on $(date +"%Y-%m-%d")"
+          git diff --exit-code || git commit -am "New mark six data obtained on $(date +"%Y-%m-%d")"
           git push
