@@ -8,10 +8,11 @@ import shutil
 import requests
 
 
-baseurl = 'https://bet.hkjc.com/marksix/getJSON.aspx/?sd={year}{month:02}{first_day:02}&ed={year}{month:02}{last_day:02}&sb=0'
+baseurl = 'https://bet2.hkjc.com/marksix/getJSON.aspx/?sd={year}{month:02}{first_day:02}&ed={year}{month:02}{last_day:02}&sb=0'
 results_dir = './data/results'
 history_results_dir = os.path.join(results_dir, 'history')
 latest_filename = os.path.join(results_dir, 'latest.json')
+draws_filename = os.path.join(results_dir, 'draws.json')
 
 
 def months(start_year, start_month):
@@ -47,7 +48,7 @@ def save_results(results):
         os.makedirs(dir)
     filename = os.path.join(dir, f'{results['id'].replace('/', '_')}.json')
     if not os.path.isfile(filename):
-        with open(filename, "w") as f:
+        with open(filename, 'w') as f:
             json.dump(results , f)
 
 
@@ -66,6 +67,15 @@ def save_latest_results():
     shutil.copyfile(os.path.join(history_results_dir, year_dir, last_results_file), latest_filename)
 
 
+def save_draws():
+    draws = {}
+    for year in sorted(os.listdir(history_results_dir)):
+        year_draws = [_.replace('_', '/').split('.')[0] for _ in sorted(os.listdir(os.path.join(history_results_dir, year)))]
+        draws[year] = {'first': year_draws[0], 'last': year_draws[-1]}
+    with open(draws_filename, 'w') as f:
+        json.dump(draws , f)
+
+
 if __name__ == '__main__':
     start_year, start_month, _ = get_latest_results_date()
     for year, month, last_day in months(start_year = start_year, start_month = start_month):
@@ -73,3 +83,4 @@ if __name__ == '__main__':
         for results in get_results(baseurl.format(year = year, month = month, first_day = 1, last_day = last_day)):
             save_results(results)
     save_latest_results()
+    save_draws()
