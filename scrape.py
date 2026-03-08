@@ -8,11 +8,61 @@ import shutil
 import requests
 
 
-baseurl = 'https://bet2.hkjc.com/marksix/getJSON.aspx/?sd={year}{month:02}{first_day:02}&ed={year}{month:02}{last_day:02}&sb=0'
+baseurl = 'https://info.cld.hkjc.com/graphql/base/'
 results_dir = './data/results'
 history_results_dir = os.path.join(results_dir, 'history')
 latest_filename = os.path.join(results_dir, 'latest.json')
 draws_filename = os.path.join(results_dir, 'draws.json')
+payload = {
+    "operationName": "marksixResult",
+    "variables": {
+        "lastNDraw": None,
+        "startDate": "20260301",
+        "endDate": "20260309",
+        "drawType": None
+    },
+    "query": """fragment lotteryDrawsFragment on LotteryDraw {
+  id
+  year
+  no
+  openDate
+  closeDate
+  drawDate
+  status
+  snowballCode
+  snowballName_en
+  snowballName_ch
+  lotteryPool {
+    sell
+    status
+    totalInvestment
+    jackpot
+    unitBet
+    estimatedPrize
+    derivedFirstPrizeDiv
+    lotteryPrizes {
+      type
+      winningUnit
+      dividend
+    }
+  }
+  drawResult {
+    drawnNo
+    xDrawnNo
+  }
+}
+
+query marksixResult($lastNDraw: Int, $startDate: String, $endDate: String, $drawType: LotteryDrawType) {
+  lotteryDraws(
+    lastNDraw: $lastNDraw
+    startDate: $startDate
+    endDate: $endDate
+    drawType: $drawType
+  ) {
+    ...lotteryDrawsFragment
+  }
+}"""
+}
 
 
 def months(start_year, start_month):
@@ -32,21 +82,23 @@ def beautify_results(results):
     return results
 
 
-def get_results(url):
-    r = requests.get(url)
+def get_results(url, year, month, last_day):
+    payload['variables']['startDate'] = f"{year}{month:02}{1:02}"
+    payload['variables']['endDate'] = f"{year}{month:02}{last_day:02}"
+    r = requests.post(url, json = payload)
     r.raise_for_status()
     try:
-        for results in r.json():
-            yield beautify_results(results)
+        for results in r.json()['data']['lotteryDraws']:
+            yield results
     except:
         pass
 
 
 def save_results(results):
-    dir = os.path.join(history_results_dir, results['date'][:4])
+    dir = os.path.join(history_results_dir, results['year'])
     if not os.path.exists(dir):
         os.makedirs(dir)
-    filename = os.path.join(dir, f'{results['id'].replace('/', '_')}.json')
+    filename = os.path.join(dir, f'{results['year']}_{results['no']:03}.json')
     if not os.path.isfile(filename):
         with open(filename, 'w') as f:
             json.dump(results , f)
@@ -57,7 +109,7 @@ def get_latest_results_date(default_year = 1993, default_month = 1):
         return default_year, default_month, 1
     with open(latest_filename) as f:
         results = json.load(f)
-        date = datetime.strptime(results['date'], '%Y-%m-%d')
+        date = datetime.strptime(results['drawDate'][:10], '%Y-%m-%d')
         return date.year, date.month, date.day
 
 
@@ -80,7 +132,7 @@ if __name__ == '__main__':
     start_year, start_month, _ = get_latest_results_date()
     for year, month, last_day in months(start_year = start_year, start_month = start_month):
         print(f'Getting results between {year}-{month}-1 and {year}-{month}-{last_day}')
-        for results in get_results(baseurl.format(year = year, month = month, first_day = 1, last_day = last_day)):
+        for results in get_results(baseurl, year, month, last_day):
             save_results(results)
     save_latest_results()
     save_draws()
